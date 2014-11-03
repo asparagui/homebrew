@@ -2,8 +2,8 @@ require "formula"
 
 class Memcached < Formula
   homepage "http://memcached.org/"
-  url "http://www.memcached.org/files/memcached-1.4.20.tar.gz"
-  sha1 "282a1e701eeb3f07159d95318f09da5ea3fcb39d"
+  url "http://www.memcached.org/files/memcached-1.4.21.tar.gz"
+  sha1 "ab10c46dd9f5d4401872d9670e575afa5bc7d66f"
 
   bottle do
     sha1 "d3075e31fbf68520bb615cad869e6b75295f566d" => :mavericks
