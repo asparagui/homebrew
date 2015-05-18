@@ -19,9 +19,17 @@ module Homebrew
       raise "No such tap!" unless tapd.directory?
       puts "Untapping #{tapname}... (#{tapd.abv})"
 
-      files = []
-      tapd.find_formula { |file| files << file }
-      unlink_tap_formula(files)
+      t = HOMEBREW_LIBRARY.to_s + "/LinkedTaps/??.#{user}.#{repo}"
+      linked_tapd = Pathname.glob(t)[0]  # What!?
+      if !linked_tapd.nil?
+        linked_tapd.delete
+      else
+        # Old style taps
+        files = []
+        tapd.find_formula { |file| files << file }
+        unlink_tap_formula(files)
+      end
+
       tapd.rmtree
       tapd.dirname.rmdir_if_possible
       puts "Untapped #{files.length} formula#{plural(files.length, 'e')}"

@@ -18,28 +18,80 @@ module Homebrew
 
     # we downcase to avoid case-insensitive filesystem issues
     tapd = HOMEBREW_LIBRARY/"Taps/#{user.downcase}/homebrew-#{repo.downcase}"
-    return false if tapd.directory?
-    ohai "Tapping #{repouser}/#{repo}"
-    args = %W[clone https://github.com/#{repouser}/homebrew-#{repo} #{tapd}]
-    args << "--depth=1" unless ARGV.include?("--full")
-    safe_system "git", *args
 
-    files = []
-    tapd.find_formula { |file| files << file }
-    link_tap_formula(files)
-    puts "Tapped #{files.length} formula#{plural(files.length, 'e')} (#{tapd.abv})"
+    if tapd.directory?
+      ohai "#{repouser}/#{repo} Already Tapped. Changing Prioirity."
+      priority = ARGV.value("priority")
+      if priority.nil?
+        opoo "Priority not specified, terminating."
+      else
+        priority = priority.to_i
+        if priority < 0 or priority > 99
+          opoo "Priority not allowed, terminating."
+        else
+          unlink_tapped_tap user, repo
+          link_tapped_tap user, repo, tapd, priority
+        end
+      end
+    else
+      ohai "Tapping #{repouser}/#{repo}"
+      args = %W[clone https://github.com/#{repouser}/homebrew-#{repo} #{tapd}]
+      args << "--depth=1" unless ARGV.include?("--full")
+      safe_system "git", *args
 
-    if private_tap?(repouser, repo) then puts <<-EOS.undent
-      It looks like you tapped a private repository. To avoid entering your
-      credentials each time you update, you can use git HTTP credential caching
-      or issue the following command:
+      # files = []
+      # tapd.find_formula { |file| files << file }
+      # link_tap_formula(files)
+      # puts "Tapped #{files.length} formula#{plural(files.length, 'e')} (#{tapd.abv})"
 
-        cd #{tapd}
-        git remote set-url origin git@github.com:#{repouser}/homebrew-#{repo}.git
-      EOS
+      priority = ARGV.value("priority")
+      if priority.nil?
+        opoo "Priority not specified, default to 99."
+        priority = 99
+      else
+        priority = priority.to_i
+        if priority < 0 or priority > 99
+          opoo "Priority not allowed, default to 99."
+          priority = 99
+        end
+      end
+
+      link_tapped_tap user, repo, tapd, priority
+
+      if private_tap?(repouser, repo) then
+        puts <<-EOS.undent
+        It looks like you tapped a private repository. To avoid entering your
+        credentials each time you update, you can use git HTTP credential caching
+        or issue the following command:
+
+          cd #{tapd}
+          git remote set-url origin git@github.com:#{repouser}/homebrew-#{repo}.git
+        EOS
+      end
+
+      true
     end
+  end
 
-    true
+  def unlink_tapped_tap(user, repo)
+    t = HOMEBREW_LIBRARY.to_s + "/LinkedTaps/??.#{user}.#{repo}"
+    linked_tapd = Pathname.glob(t)[0]
+    if !linked_tapd.nil?
+      linked_tapd.delete
+    end
+  end
+
+  def link_tapped_tap(user, repo, tapd, priority)
+    # We use period as splitter as user / repo name may contatin both _ and -
+    to = HOMEBREW_LIBRARY.join("LinkedTaps/%2d.%s.%s" % [priority, user, repo])
+    to.delete if to.symlink? && to.resolved_path == tapd
+
+    begin
+      to.make_relative_symlink(tapd)
+    rescue SystemCallError
+      to = to.resolved_path if to.symlink?
+      oppo "Something went wrong." # TODO
+    end
   end
 
   def link_tap_formula(paths, warn_about_conflicts=true)
