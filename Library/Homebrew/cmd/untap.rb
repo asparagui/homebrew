@@ -21,18 +21,25 @@ module Homebrew
 
       t = HOMEBREW_LIBRARY.to_s + "/LinkedTaps/??.#{user}.#{repo}"
       linked_tapd = Pathname.glob(t)[0]  # What!?
+      
       if !linked_tapd.nil?
         linked_tapd.delete
+        
+        puts linked_tapd
+        tapd.rmtree
+        tapd.dirname.rmdir_if_possible
+        
       else
         # Old style taps
         files = []
         tapd.find_formula { |file| files << file }
         unlink_tap_formula(files)
+        
+        puts "Untapped #{files.length} formula#{plural(files.length, 'e')}"
+        
+        tapd.rmtree
+        tapd.dirname.rmdir_if_possible
       end
-
-      tapd.rmtree
-      tapd.dirname.rmdir_if_possible
-      puts "Untapped #{files.length} formula#{plural(files.length, 'e')}"
     end
   end
 
